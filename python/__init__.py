@@ -1,0 +1,2 @@
+# Santa Wishlist plugin package
+

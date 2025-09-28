@@ -1,0 +1,34 @@
+{
+  "plugins": {
+    "santa_wishlist": {
+      "name": "Liste de souhaits du Père Noël",
+      "description": "Enregistrer les souhaits de Noël pour tous les âges auprès du Père Noël.",
+      "actions": {
+        "register": {
+          "label": "Enregistrer un souhait",
+          "help": "Ajoutez un nouveau souhait : nom, âge facultatif et texte du souhait."
+        },
+        "list": {
+          "label": "Afficher les souhaits",
+          "help": "Affiche tous les souhaits enregistrés pour cet enfant. Nom et âge sont requis pour la confidentialité."
+        },
+        "trending": {
+          "label": "Tendances",
+          "help": "Voir les souhaits les plus populaires de la saison."
+        }
+      },
+      "fields": {
+        "action": { "label": "Action" },
+        "name": { "label": "Nom de l'enfant" },
+        "age": { "label": "Âge" },
+        "wish": { "label": "Souhait" }
+      },
+      "messages": {
+        "missing_name": "Veuillez indiquer un nom avant d'enregistrer un souhait.",
+        "missing_wish": "Décrivez le souhait à transmettre au Père Noël.",
+        "invalid_age": "L'âge doit être un nombre entier entre 1 et 150.",
+        "ledger_unavailable": "Le registre du Père Noël est actuellement indisponible. Réessayez plus tard."
+      }
+    }
+  }
+}

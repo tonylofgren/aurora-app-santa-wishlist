@@ -1,0 +1,34 @@
+{
+  "plugins": {
+    "santa_wishlist": {
+      "name": "Tomtens önskelista",
+      "description": "Registrera julönskningar hos tomten för alla åldrar.",
+      "actions": {
+        "register": {
+          "label": "Registrera önskning",
+          "help": "Spara en ny önskning till tomten. Ange namn, valfri ålder och önskan."
+        },
+        "list": {
+          "label": "Visa önskningar",
+          "help": "Visa alla sparade önskningar för barnet. Både namn och ålder krävs för integritet."
+        },
+        "trending": {
+          "label": "Trendstatistik",
+          "help": "Se vilka önskningar som är mest populära den senaste tiden."
+        }
+      },
+      "fields": {
+        "action": { "label": "Åtgärd" },
+        "name": { "label": "Barnets namn" },
+        "age": { "label": "Ålder" },
+        "wish": { "label": "Önskning" }
+      },
+      "messages": {
+        "missing_name": "Ange ett namn innan du registrerar en önskning.",
+        "missing_wish": "Skriv önskningen som ska skickas till tomten.",
+        "invalid_age": "Ålder måste vara ett heltal mellan 1 och 150.",
+        "ledger_unavailable": "Tomtens bok är inte tillgänglig just nu. Försök igen om en stund."
+      }
+    }
+  }
+}

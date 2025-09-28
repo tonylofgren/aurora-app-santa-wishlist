@@ -1,0 +1,42 @@
+{
+  "plugins": {
+    "santa_wishlist": {
+      "name": "Santa's Wishlist",
+      "description": "Register Christmas wishes with Santa for all ages.",
+      "actions": {
+        "register": {
+          "label": "Register wish",
+          "help": "Store a new wish for Santa's review. Provide the child's name, optional age and the wish text."
+        },
+        "list": {
+          "label": "Show wishes",
+          "help": "Show every wish saved for the specified child. Both name and age are required for privacy."
+        },
+        "trending": {
+          "label": "Trending statistics",
+          "help": "View the most requested presents this season based on recent registrations."
+        }
+      },
+      "fields": {
+        "action": {
+          "label": "Action"
+        },
+        "name": {
+          "label": "Child's name"
+        },
+        "age": {
+          "label": "Age"
+        },
+        "wish": {
+          "label": "Wish"
+        }
+      },
+      "messages": {
+        "missing_name": "Please provide a name before registering a wish.",
+        "missing_wish": "Write down the wish Santa should receive.",
+        "invalid_age": "Age must be a whole number between 1 and 150.",
+        "ledger_unavailable": "Santa's ledger is unavailable right now. Please try again shortly."
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "id": "santa_wishlist",
+  "display_name": "Santa's Wishlist",
+  "description": "Register, list and analyse Christmas wishes for Santa's workshop.",
+  "version": "1.0.0",
+  "api_compat": ">=2.4.0,<3.0.0",
+  "entrypoints": [
+    "python.santa_wishlist:SantaWishlist"
+  ],
+  "capabilities": [
+    "storage.scoped_write",
+    "events.fire",
+    "config.read_write"
+  ],
+  "author": "Tony Lofgren",
+  "license": "MIT",
+  "homepage": "https://github.com/tonylofgren/aurora-plugin-santa-wishlist",
+  "issue_tracker": "https://github.com/tonylofgren/aurora-plugin-santa-wishlist/issues",
+  "keywords": ["aurora", "christmas", "wishlist", "plugin"],
+  "source": {
+    "type": "git",
+    "url": "https://github.com/tonylofgren/aurora-plugin-santa-wishlist.git"
+  }
+}
