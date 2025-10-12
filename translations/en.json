@@ -34,7 +34,10 @@
       "messages": {
         "missing_name": "Please provide a name before registering a wish.",
         "missing_wish": "Write down the wish Santa should receive.",
+        "missing_age": "Please provide the age to look up recorded wishes.",
+        "wish_too_short": "The wish needs to be at least three characters long.",
         "invalid_age": "Age must be a whole number between 1 and 150.",
+        "unknown_action": "Unknown action '{action}'. Available actions: register, list, trending.",
         "ledger_unavailable": "Santa's ledger is unavailable right now. Please try again shortly."
       }
     }

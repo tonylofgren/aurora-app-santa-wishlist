@@ -1,16 +1,16 @@
 {
   "plugins": {
     "santa_wishlist": {
-      "name": "Liste de souhaits du Père Noël",
-      "description": "Enregistrer les souhaits de Noël pour tous les âges auprès du Père Noël.",
+      "name": "Liste de souhaits du PÃ¨re NoÃ«l",
+      "description": "Enregistrer les souhaits de NoÃ«l pour tous les Ã¢ges auprÃ¨s du PÃ¨re NoÃ«l.",
       "actions": {
         "register": {
           "label": "Enregistrer un souhait",
-          "help": "Ajoutez un nouveau souhait : nom, âge facultatif et texte du souhait."
+          "help": "Ajoutez un nouveau souhait : nom, Ã¢ge facultatif et texte du souhait."
         },
         "list": {
           "label": "Afficher les souhaits",
-          "help": "Affiche tous les souhaits enregistrés pour cet enfant. Nom et âge sont requis pour la confidentialité."
+          "help": "Affiche tous les souhaits enregistrÃ©s pour cet enfant. Nom et Ã¢ge sont requis pour la confidentialitÃ©."
         },
         "trending": {
           "label": "Tendances",
@@ -20,14 +20,17 @@
       "fields": {
         "action": { "label": "Action" },
         "name": { "label": "Nom de l'enfant" },
-        "age": { "label": "Âge" },
+        "age": { "label": "Ã‚ge" },
         "wish": { "label": "Souhait" }
       },
       "messages": {
         "missing_name": "Veuillez indiquer un nom avant d'enregistrer un souhait.",
-        "missing_wish": "Décrivez le souhait à transmettre au Père Noël.",
-        "invalid_age": "L'âge doit être un nombre entier entre 1 et 150.",
-        "ledger_unavailable": "Le registre du Père Noël est actuellement indisponible. Réessayez plus tard."
+        "missing_wish": "DÃ©crivez le souhait Ã  transmettre au PÃ¨re NoÃ«l.",
+        "missing_age": "Veuillez indiquer l'Ã¢ge pour afficher les souhaits enregistrÃ©s.",
+        "wish_too_short": "Le souhait doit contenir au moins trois caractÃ¨res.",
+        "invalid_age": "L'Ã¢ge doit Ãªtre un nombre entier entre 1 et 150.",
+        "unknown_action": "Action inconnue '{action}'. Actions disponibles : register, list, trending.",
+        "ledger_unavailable": "Le registre du PÃ¨re NoÃ«l est actuellement indisponible. RÃ©essayez plus tard."
       }
     }
   }

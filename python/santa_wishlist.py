@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import asyncio
 import hashlib
 from dataclasses import replace
@@ -10,7 +9,6 @@ import voluptuous as vol
 
 from custom_components.aurora_llm_assistant.tools.core.base_tool import SimpleBaseTool
 from custom_components.aurora_llm_assistant.tools.core.database_manager import DatabaseError
-from custom_components.aurora_llm_assistant.tools.core.event_manager import EventType
 from custom_components.aurora_llm_assistant.tools.core.schema_manager import (
     ActionSpec,
     BaseSchema,
@@ -19,8 +17,9 @@ from custom_components.aurora_llm_assistant.tools.core.schema_manager import (
     register_schema,
 )
 
-ISO_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
 DEFAULT_TREND_RANGE_DAYS = 30
+MIN_ALLOWED_AGE = 1
+MAX_ALLOWED_AGE = 150
 
 
 @register_schema("santa_wishlist")
@@ -84,7 +83,7 @@ class SantaWishlistSchema(BaseSchema):
             ),
         )
 
-        self.set_friendly_name("Tomtens önskelista")
+        self.set_friendly_name("Tomtens Ã¶nskelista")
 
 
 class SantaWishlist(SimpleBaseTool):
@@ -125,7 +124,11 @@ class SantaWishlist(SimpleBaseTool):
 
         return {
             "status": "error",
-            "message": f"Unknown action '{action}'. Available actions: register, list, trending.",
+            "message": self._message(
+                "unknown_action",
+                f"Unknown action '{action}'. Available actions: register, list, trending.",
+                action=action,
+            ),
         }
 
     async def _register_wish(
@@ -136,23 +139,47 @@ class SantaWishlist(SimpleBaseTool):
     ) -> Dict[str, Any]:
         normalized_name = self._normalize_name(name)
         if not normalized_name:
-            return {"status": "error", "message": "Please provide the name of the person."}
+            return {
+                "status": "error",
+                "message": self._message(
+                    "missing_name",
+                    "Please provide the name of the person.",
+                ),
+            }
 
         sanitized_wish = self._sanitize_wish(wish)
         if not sanitized_wish:
-            return {"status": "error", "message": "A wish is required to register with Santa."}
+            return {
+                "status": "error",
+                "message": self._message(
+                    "missing_wish",
+                    "A wish is required to register with Santa.",
+                ),
+            }
+        if len(sanitized_wish) < 3:
+            return {
+                "status": "error",
+                "message": self._message(
+                    "wish_too_short",
+                    "The wish needs to be at least three characters long.",
+                ),
+            }
 
-        if age is not None and not isinstance(age, int):
-            return {"status": "error", "message": "Age must be a whole number."}
+        validated_age, age_error = self._validate_age(age, required=False)
+        if age_error:
+            return {"status": "error", "message": age_error}
 
         connection = await self._ensure_connection()
         if not connection:
             return {
                 "status": "error",
-                "message": "Santa's ledger is unavailable right now. Please try again later.",
+                "message": self._message(
+                    "ledger_unavailable",
+                    "Santa's ledger is unavailable right now. Please try again later.",
+                ),
             }
 
-        child_hash = self._child_hash(normalized_name, age)
+        child_hash = self._child_hash(normalized_name, validated_age)
         created_at = self._utc_now_iso()
         entry_id = str(self.config.get("entry_id", ""))
 
@@ -164,7 +191,7 @@ class SantaWishlist(SimpleBaseTool):
         params = [
             child_hash,
             normalized_name,
-            age,
+            validated_age,
             sanitized_wish,
             created_at,
             entry_id,
@@ -172,16 +199,23 @@ class SantaWishlist(SimpleBaseTool):
         ]
 
         try:
-            result = await self.hass.async_add_executor_job(connection.execute_query, insert_sql, params)
+            result = await self.hass.async_add_executor_job(
+                connection.execute_query,
+                insert_sql,
+                params,
+            )
         except DatabaseError as error:
             self._logger.error("Failed to register wish: %s", error)
             self.event_manager.plugin_error(self.name, str(error), "register_wish")
             return {
                 "status": "error",
-                "message": "Could not store the wish due to a database error. Please try again later.",
+                "message": self._message(
+                    "ledger_unavailable",
+                    "Could not store the wish due to a database error. Please try again later.",
+                ),
             }
 
-        wish_id = result.get("lastrowid")
+        wish_id = result.get("lastrowid") if isinstance(result, dict) else None
 
         total_result = await self._select(
             f"SELECT COUNT(*) FROM {table} WHERE child_hash = ?",
@@ -201,7 +235,7 @@ class SantaWishlist(SimpleBaseTool):
             self.name,
             {
                 "person_name": normalized_name,
-                "person_age": age,
+                "person_age": validated_age,
                 "wish_text": sanitized_wish,
                 "wish_id": wish_id,
                 "registered_at": created_at,
@@ -210,8 +244,8 @@ class SantaWishlist(SimpleBaseTool):
         )
 
         message = (
-            f"Santa logged a new wish for {self._format_child_name(normalized_name, age)}: \"{sanitized_wish}\"."
-            f" There are now {total_for_child} wishes for this person."
+            f"Santa logged a new wish for {self._format_child_name(normalized_name, validated_age)}: "
+            f"\"{sanitized_wish}\". There are now {total_for_child} wishes for this person."
         )
 
         return {
@@ -224,20 +258,30 @@ class SantaWishlist(SimpleBaseTool):
 
     async def _list_wishes(self, name: Optional[str], age: Optional[int]) -> Dict[str, Any]:
         normalized_name = self._normalize_name(name)
-        if not normalized_name or age is None:
+        validated_age, age_error = self._validate_age(age, required=True)
+
+        if not normalized_name:
             return {
                 "status": "error",
-                "message": "Please provide both name and age to see recorded wishes.",
+                "message": self._message(
+                    "missing_name",
+                    "Please provide the name of the person.",
+                ),
             }
+        if age_error:
+            return {"status": "error", "message": age_error}
 
         connection = await self._ensure_connection()
         if not connection:
             return {
                 "status": "error",
-                "message": "Santa's ledger is unavailable right now. Please try again later.",
+                "message": self._message(
+                    "ledger_unavailable",
+                    "Santa's ledger is unavailable right now. Please try again later.",
+                ),
             }
 
-        child_hash = self._child_hash(normalized_name, age)
+        child_hash = self._child_hash(normalized_name, validated_age)
         table = self._table_name("wishlist_entries")
         rows = await self._select(
             f"SELECT wish, created_at FROM {table} WHERE child_hash = ? ORDER BY created_at DESC",
@@ -247,7 +291,10 @@ class SantaWishlist(SimpleBaseTool):
         if not rows:
             return {
                 "status": "success",
-                "message": f"No wishes have been recorded yet for {self._format_child_name(normalized_name, age)}.",
+                "message": (
+                    f"No wishes have been recorded yet for "
+                    f"{self._format_child_name(normalized_name, validated_age)}."
+                ),
                 "wishes": [],
             }
 
@@ -266,7 +313,7 @@ class SantaWishlist(SimpleBaseTool):
         preview = "\n".join(lines)
 
         message = (
-            f"{self._format_child_name(normalized_name, age)} has {len(wishes)} wishes saved."
+            f"{self._format_child_name(normalized_name, validated_age)} has {len(wishes)} wishes saved."
             f"\n{preview}"
         )
 
@@ -282,11 +329,14 @@ class SantaWishlist(SimpleBaseTool):
         if not connection:
             return {
                 "status": "error",
-                "message": "Santa's analytics are offline right now. Please try again later.",
+                "message": self._message(
+                    "ledger_unavailable",
+                    "Santa's analytics are offline right now. Please try again later.",
+                ),
             }
 
         table = self._table_name("wishlist_entries")
-        since = (datetime.utcnow() - timedelta(days=DEFAULT_TREND_RANGE_DAYS)).isoformat()
+        since = self._utc_iso_days_ago(DEFAULT_TREND_RANGE_DAYS)
 
         trending_rows = await self._select(
             (
@@ -344,17 +394,26 @@ class SantaWishlist(SimpleBaseTool):
 
             entry_id = self.config.get("entry_id")
             if not entry_id:
-                self._logger.error("entry_id missing from plugin configuration; cannot open wishlist database")
+                self._logger.error(
+                    "entry_id missing from plugin configuration; cannot open wishlist database"
+                )
+                self.event_manager.plugin_error(
+                    self.name,
+                    "entry_id missing from plugin configuration",
+                    "ensure_connection",
+                )
                 return None
 
             try:
-                connection = self.database_manager.get_connection(self.name, self.config)
+                if hasattr(self, "get_database_connection"):
+                    connection = self.get_database_connection()
+                else:
+                    connection = self.database_manager.get_connection(self.name, self.config)
             except DatabaseError as error:
                 self._logger.error("Could not connect to wishlist database: %s", error)
                 self.event_manager.plugin_error(self.name, str(error), "ensure_connection")
                 return None
 
-            # Ensure required tables once per plugin instance
             if not self._tables_ready:
                 schema = {
                     "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
@@ -366,7 +425,11 @@ class SantaWishlist(SimpleBaseTool):
                     "entry_id": "TEXT",
                     "locale": "TEXT",
                 }
-                await self.hass.async_add_executor_job(connection.create_table, "wishlist_entries", schema)
+                await self.hass.async_add_executor_job(
+                    connection.create_table,
+                    "wishlist_entries",
+                    schema,
+                )
 
                 index_hash = (
                     f"CREATE INDEX IF NOT EXISTS idx_{self.name}_child_hash ON "
@@ -420,14 +483,70 @@ class SantaWishlist(SimpleBaseTool):
     def _utc_now_iso(self) -> str:
         return datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
 
+    def _utc_iso_days_ago(self, days: int) -> str:
+        return (
+            datetime.utcnow().replace(microsecond=0) - timedelta(days=days)
+        ).isoformat() + "Z"
+
     def _humanize_timestamp(self, value: Optional[str]) -> str:
         if not value:
             return "unknown time"
         try:
-            if value.endswith("Z"):
-                value = value[:-1]
-            dt_obj = datetime.fromisoformat(value)
+            working_value = value[:-1] if value.endswith("Z") else value
+            dt_obj = datetime.fromisoformat(working_value)
             return dt_obj.strftime("%Y-%m-%d %H:%M")
         except ValueError:
             return value
 
+    def _validate_age(
+        self,
+        age: Optional[Any],
+        *,
+        required: bool,
+    ) -> tuple[Optional[int], Optional[str]]:
+        if age in (None, ""):
+            if required:
+                return None, self._message(
+                    "missing_age",
+                    "Please provide the age to look up recorded wishes.",
+                )
+            return None, None
+
+        parsed_age: Optional[int] = None
+
+        if isinstance(age, int):
+            parsed_age = age
+        elif isinstance(age, float) and age.is_integer():
+            parsed_age = int(age)
+        elif isinstance(age, str):
+            stripped = age.strip()
+            if not stripped:
+                if required:
+                    return None, self._message(
+                        "missing_age",
+                        "Please provide the age to look up recorded wishes.",
+                    )
+                return None, None
+            if stripped.isdigit():
+                parsed_age = int(stripped)
+            else:
+                return None, self._message(
+                    "invalid_age",
+                    "Age must be a whole number between 1 and 150.",
+                )
+        else:
+            return None, self._message(
+                "invalid_age",
+                "Age must be a whole number between 1 and 150.",
+            )
+
+        if parsed_age is not None and not (MIN_ALLOWED_AGE <= parsed_age <= MAX_ALLOWED_AGE):
+            return None, self._message(
+                "invalid_age",
+                "Age must be a whole number between 1 and 150.",
+            )
+
+        return parsed_age, None
+
+    def _message(self, key: str, fallback: str, **kwargs: Any) -> str:
+        return self.get_localized_text(f"messages.{key}", fallback, **kwargs)

@@ -1,14 +1,14 @@
-# Aurora Plugin – Santa's Wishlist
+# Aurora Plugin â€“ Santa's Wishlist
 
 A standalone plugin for the [Aurora LLM Assistant](https://github.com/tony-aurora/aurora-llm-assistant) that keeps track of Christmas wishes. Families can register wishes, review what has already been sent to Santa and explore seasonal trends.
 
 ## Features
 
-- ? Register wishes with optional age metadata
-- ?? Retrieve all wishes stored for a specific child
-- ?? Trending analytics summarising the most popular requests
-- ?? Uses Aurora's isolated database manager for per-instance storage
-- ?? Ships with English, Swedish, German and French translations
+- Register wishes with optional age metadata.
+- Retrieve all wishes stored for a specific child.
+- Trending analytics summarising the most popular requests.
+- Uses Aurora's isolated database manager for per-instance storage.
+- Ships with English, Swedish, German and French translations.
 
 ## Installation
 
@@ -32,7 +32,7 @@ The plugin exposes three LLM actions:
 
 Example prompts:
 ```text
-- "Använd santa_wishlist med action='register', name='Lisa', age=7, wish='En röd sparkcykel'"
+- "AnvÃ¤nd santa_wishlist med action='register', name='Lisa', age=7, wish='En rÃ¶d sparkcykel'"
 - "Ask santa_wishlist to list wishes for name='Alex' age=9"
 - "Run santa_wishlist action='trending'"
 ```
@@ -48,4 +48,3 @@ The plugin follows the new centralized schema system (`BaseSchema`/`FieldSpec`) 
 ## License
 
 Released under the MIT license. See [LICENSE](LICENSE) for details.
-

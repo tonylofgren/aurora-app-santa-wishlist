@@ -1,33 +1,36 @@
 {
   "plugins": {
     "santa_wishlist": {
-      "name": "Tomtens önskelista",
-      "description": "Registrera julönskningar hos tomten för alla åldrar.",
+      "name": "Tomtens Ã¶nskelista",
+      "description": "Registrera julÃ¶nskningar hos tomten fÃ¶r alla Ã¥ldrar.",
       "actions": {
         "register": {
-          "label": "Registrera önskning",
-          "help": "Spara en ny önskning till tomten. Ange namn, valfri ålder och önskan."
+          "label": "Registrera Ã¶nskning",
+          "help": "Spara en ny Ã¶nskning till tomten. Ange namn, valfri Ã¥lder och Ã¶nskan."
         },
         "list": {
-          "label": "Visa önskningar",
-          "help": "Visa alla sparade önskningar för barnet. Både namn och ålder krävs för integritet."
+          "label": "Visa Ã¶nskningar",
+          "help": "Visa alla sparade Ã¶nskningar fÃ¶r barnet. BÃ¥de namn och Ã¥lder krÃ¤vs fÃ¶r integritet."
         },
         "trending": {
           "label": "Trendstatistik",
-          "help": "Se vilka önskningar som är mest populära den senaste tiden."
+          "help": "Se vilka Ã¶nskningar som Ã¤r mest populÃ¤ra den senaste tiden."
         }
       },
       "fields": {
-        "action": { "label": "Åtgärd" },
+        "action": { "label": "Ã…tgÃ¤rd" },
         "name": { "label": "Barnets namn" },
-        "age": { "label": "Ålder" },
-        "wish": { "label": "Önskning" }
+        "age": { "label": "Ã…lder" },
+        "wish": { "label": "Ã–nskning" }
       },
       "messages": {
-        "missing_name": "Ange ett namn innan du registrerar en önskning.",
-        "missing_wish": "Skriv önskningen som ska skickas till tomten.",
-        "invalid_age": "Ålder måste vara ett heltal mellan 1 och 150.",
-        "ledger_unavailable": "Tomtens bok är inte tillgänglig just nu. Försök igen om en stund."
+        "missing_name": "Ange ett namn innan du registrerar en Ã¶nskning.",
+        "missing_wish": "Skriv Ã¶nskningen som ska skickas till tomten.",
+        "missing_age": "Ange Ã¥ldern fÃ¶r att visa sparade Ã¶nskningar.",
+        "wish_too_short": "Ã–nskningen mÃ¥ste vara minst tre tecken lÃ¥ng.",
+        "invalid_age": "Ã…lder mÃ¥ste vara ett heltal mellan 1 och 150.",
+        "unknown_action": "OkÃ¤nd Ã¥tgÃ¤rd '{action}'. TillgÃ¤ngliga Ã¥tgÃ¤rder: register, list, trending.",
+        "ledger_unavailable": "Tomtens bok Ã¤r inte tillgÃ¤nglig just nu. FÃ¶rsÃ¶k igen om en stund."
       }
     }
   }

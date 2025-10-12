@@ -2,19 +2,19 @@
   "plugins": {
     "santa_wishlist": {
       "name": "Santas Wunschliste",
-      "description": "Weihnachtswünsche aller Altersgruppen für den Weihnachtsmann registrieren.",
+      "description": "WeihnachtswÃ¼nsche aller Altersgruppen fÃ¼r den Weihnachtsmann registrieren.",
       "actions": {
         "register": {
           "label": "Wunsch speichern",
           "help": "Neuen Wunsch eintragen. Name, optionales Alter und der Wunschtext sind erforderlich."
         },
         "list": {
-          "label": "Wünsche anzeigen",
-          "help": "Alle gespeicherten Wünsche für das Kind anzeigen. Name und Alter werden aus Datenschutzgründen benötigt."
+          "label": "WÃ¼nsche anzeigen",
+          "help": "Alle gespeicherten WÃ¼nsche fÃ¼r das Kind anzeigen. Name und Alter werden aus DatenschutzgrÃ¼nden benÃ¶tigt."
         },
         "trending": {
           "label": "Trendstatistik",
-          "help": "Beliebteste Wünsche der aktuellen Saison anzeigen."
+          "help": "Beliebteste WÃ¼nsche der aktuellen Saison anzeigen."
         }
       },
       "fields": {
@@ -26,8 +26,11 @@
       "messages": {
         "missing_name": "Bitte einen Namen angeben, bevor ein Wunsch registriert wird.",
         "missing_wish": "Formuliere den Wunsch, der gespeichert werden soll.",
+        "missing_age": "Bitte ein Alter angeben, um gespeicherte WÃ¼nsche anzuzeigen.",
+        "wish_too_short": "Der Wunsch muss mindestens drei Zeichen lang sein.",
         "invalid_age": "Das Alter muss eine ganze Zahl zwischen 1 und 150 sein.",
-        "ledger_unavailable": "Santas Verzeichnis ist gerade nicht verfügbar. Bitte später erneut versuchen."
+        "unknown_action": "Unbekannte Aktion '{action}'. VerfÃ¼gbare Aktionen: register, list, trending.",
+        "ledger_unavailable": "Santas Verzeichnis ist gerade nicht verfÃ¼gbar. Bitte spÃ¤ter erneut versuchen."
       }
     }
   }
