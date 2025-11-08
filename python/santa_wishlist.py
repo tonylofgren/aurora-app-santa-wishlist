@@ -1,9 +1,11 @@
 from __future__ import annotations
 import asyncio
 import hashlib
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from functools import partial
+from typing import Any, Callable, Dict, List, Optional
 
 import voluptuous as vol
 
@@ -100,11 +102,15 @@ class SantaWishlist(SimpleBaseTool):
         self._connection = None
         self._tables_ready = False
         self._db_lock = asyncio.Lock()
+        self._db_executor: Optional[ThreadPoolExecutor] = None
         super().__init__(hass, config)
 
     def on_unload(self) -> None:
         self._connection = None
         self._tables_ready = False
+        if self._db_executor:
+            self._db_executor.shutdown(wait=False)
+            self._db_executor = None
 
     async def handle(
         self,
@@ -199,8 +205,8 @@ class SantaWishlist(SimpleBaseTool):
         ]
 
         try:
-            result = await self.hass.async_add_executor_job(
-                connection.execute_query,
+            result = await self._run_db_task(
+                self._execute_query_sync,
                 insert_sql,
                 params,
             )
@@ -405,53 +411,85 @@ class SantaWishlist(SimpleBaseTool):
                 return None
 
             try:
-                if hasattr(self, "get_database_connection"):
-                    connection = self.get_database_connection()
-                else:
-                    connection = self.database_manager.get_connection(self.name, self.config)
+                connection = await self._run_db_task(self._get_or_create_connection_sync)
             except DatabaseError as error:
                 self._logger.error("Could not connect to wishlist database: %s", error)
                 self.event_manager.plugin_error(self.name, str(error), "ensure_connection")
                 return None
 
-            if not self._tables_ready:
-                schema = {
-                    "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
-                    "child_hash": "TEXT NOT NULL",
-                    "child_name": "TEXT NOT NULL",
-                    "age": "INTEGER",
-                    "wish": "TEXT NOT NULL",
-                    "created_at": "TEXT NOT NULL",
-                    "entry_id": "TEXT",
-                    "locale": "TEXT",
-                }
-                await self.hass.async_add_executor_job(
-                    connection.create_table,
-                    "wishlist_entries",
-                    schema,
-                )
-
-                index_hash = (
-                    f"CREATE INDEX IF NOT EXISTS idx_{self.name}_child_hash ON "
-                    f"{self._table_name('wishlist_entries')} (child_hash)"
-                )
-                index_wish = (
-                    f"CREATE INDEX IF NOT EXISTS idx_{self.name}_wish ON "
-                    f"{self._table_name('wishlist_entries')} (wish)"
-                )
-                await self.hass.async_add_executor_job(connection.execute_query, index_hash, [])
-                await self.hass.async_add_executor_job(connection.execute_query, index_wish, [])
-                self._tables_ready = True
-
-            self._connection = connection
-            return self._connection
+            return connection
 
     async def _select(self, query: str, params: Optional[List[Any]] = None) -> List[List[Any]]:
         connection = await self._ensure_connection()
         if not connection:
             return []
-        result = await self.hass.async_add_executor_job(connection.execute_query, query, params or [])
+
+        try:
+            result = await self._run_db_task(
+                self._execute_query_sync,
+                query,
+                params or [],
+            )
+        except DatabaseError as error:
+            self._logger.error("Database query failed: %s", error)
+            self.event_manager.plugin_error(self.name, str(error), "select")
+            return []
+
         return result.get("data", []) if isinstance(result, dict) else []
+
+    async def _run_db_task(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+        if not self._db_executor:
+            self._db_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"{self.name}_db")
+
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            self._db_executor,
+            partial(func, *args, **kwargs),
+        )
+
+    def _get_or_create_connection_sync(self):
+        if self._connection and self._tables_ready:
+            return self._connection
+
+        if hasattr(self, "get_database_connection"):
+            connection = self.get_database_connection()
+        else:
+            connection = self.database_manager.get_connection(self.name, self.config)
+
+        if not self._tables_ready:
+            schema = {
+                "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+                "child_hash": "TEXT NOT NULL",
+                "child_name": "TEXT NOT NULL",
+                "age": "INTEGER",
+                "wish": "TEXT NOT NULL",
+                "created_at": "TEXT NOT NULL",
+                "entry_id": "TEXT",
+                "locale": "TEXT",
+            }
+            connection.create_table(
+                "wishlist_entries",
+                schema,
+            )
+
+            index_hash = (
+                f"CREATE INDEX IF NOT EXISTS idx_{self.name}_child_hash ON "
+                f"{self._table_name('wishlist_entries')} (child_hash)"
+            )
+            index_wish = (
+                f"CREATE INDEX IF NOT EXISTS idx_{self.name}_wish ON "
+                f"{self._table_name('wishlist_entries')} (wish)"
+            )
+            connection.execute_query(index_hash, [])
+            connection.execute_query(index_wish, [])
+            self._tables_ready = True
+
+        self._connection = connection
+        return self._connection
+
+    def _execute_query_sync(self, query: str, params: Optional[List[Any]] = None):
+        connection = self._get_or_create_connection_sync()
+        return connection.execute_query(query, params or [])
 
     def _table_name(self, suffix: str) -> str:
         return f"{self.name}_{suffix}"
