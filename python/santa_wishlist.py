@@ -1,6 +1,7 @@
 from __future__ import annotations
 import asyncio
 import hashlib
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import datetime, timedelta
@@ -100,6 +101,7 @@ class SantaWishlist(SimpleBaseTool):
 
     def __init__(self, hass, config: Optional[Dict[str, Any]] = None) -> None:
         self._connection = None
+        self._connection_thread_id: Optional[int] = None
         self._tables_ready = False
         self._db_lock = asyncio.Lock()
         self._db_executor: Optional[ThreadPoolExecutor] = None
@@ -107,6 +109,7 @@ class SantaWishlist(SimpleBaseTool):
 
     def on_unload(self) -> None:
         self._connection = None
+        self._connection_thread_id = None
         self._tables_ready = False
         if self._db_executor:
             self._db_executor.shutdown(wait=False)
@@ -391,7 +394,11 @@ class SantaWishlist(SimpleBaseTool):
         }
 
     async def _ensure_connection(self):
-        if self._connection and self._tables_ready:
+        if (
+            self._connection
+            and self._tables_ready
+            and self._connection_thread_id == threading.get_ident()
+        ):
             return self._connection
 
         async with self._db_lock:
@@ -456,6 +463,11 @@ class SantaWishlist(SimpleBaseTool):
         else:
             connection = self.database_manager.get_connection(self.name, self.config)
 
+        current_thread = threading.get_ident()
+
+        if self._connection_thread_id != current_thread:
+            self._tables_ready = False
+
         if not self._tables_ready:
             schema = {
                 "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
@@ -483,6 +495,8 @@ class SantaWishlist(SimpleBaseTool):
             connection.execute_query(index_hash, [])
             connection.execute_query(index_wish, [])
             self._tables_ready = True
+
+        self._connection_thread_id = current_thread
 
         self._connection = connection
         return self._connection
