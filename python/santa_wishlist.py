@@ -103,7 +103,8 @@ class SantaWishlist(SimpleBaseTool):
         self._connection = None
         self._connection_thread_id: Optional[int] = None
         self._tables_ready = False
-        self._db_lock = asyncio.Lock()
+        self._connection_lock = asyncio.Lock()
+        self._db_task_lock = asyncio.Lock()
         self._db_executor: Optional[ThreadPoolExecutor] = None
         super().__init__(hass, config)
 
@@ -114,6 +115,26 @@ class SantaWishlist(SimpleBaseTool):
         if self._db_executor:
             self._db_executor.shutdown(wait=False)
             self._db_executor = None
+
+    def get_database_connection(self):
+        """Return a SQLite connection that allows cross-thread usage."""
+
+        get_connection = getattr(self.database_manager, "get_connection")
+
+        try:
+            connection = get_connection(
+                self.name,
+                self.config,
+                check_same_thread=False,
+            )
+        except TypeError:
+            connection = get_connection(self.name, self.config)
+            self._logger.debug(
+                "DatabaseManager.get_connection does not support the check_same_thread "
+                "override; falling back to default behaviour"
+            )
+
+        return connection
 
     async def handle(
         self,
@@ -401,7 +422,7 @@ class SantaWishlist(SimpleBaseTool):
         ):
             return self._connection
 
-        async with self._db_lock:
+        async with self._connection_lock:
             if self._connection and self._tables_ready:
                 return self._connection
 
@@ -445,14 +466,17 @@ class SantaWishlist(SimpleBaseTool):
         return result.get("data", []) if isinstance(result, dict) else []
 
     async def _run_db_task(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
-        if not self._db_executor:
-            self._db_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix=f"{self.name}_db")
+        async with self._db_task_lock:
+            if not self._db_executor:
+                self._db_executor = ThreadPoolExecutor(
+                    max_workers=1, thread_name_prefix=f"{self.name}_db"
+                )
 
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            self._db_executor,
-            partial(func, *args, **kwargs),
-        )
+            loop = asyncio.get_running_loop()
+            return await loop.run_in_executor(
+                self._db_executor,
+                partial(func, *args, **kwargs),
+            )
 
     def _get_or_create_connection_sync(self):
         if self._connection and self._tables_ready:
@@ -467,6 +491,7 @@ class SantaWishlist(SimpleBaseTool):
 
         if self._connection_thread_id != current_thread:
             self._tables_ready = False
+            self._connection = None
 
         if not self._tables_ready:
             schema = {
