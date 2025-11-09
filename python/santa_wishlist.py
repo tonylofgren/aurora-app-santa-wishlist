@@ -106,6 +106,8 @@ class SantaWishlist(SimpleBaseTool):
         self._connection_lock = asyncio.Lock()
         self._db_task_lock = asyncio.Lock()
         self._db_executor: Optional[ThreadPoolExecutor] = None
+        self._fallback_entry_id: Optional[str] = None
+        self._entry_id_warning_emitted = False
         super().__init__(hass, config)
 
     def on_unload(self) -> None:
@@ -426,17 +428,7 @@ class SantaWishlist(SimpleBaseTool):
             if self._connection and self._tables_ready:
                 return self._connection
 
-            entry_id = self.config.get("entry_id")
-            if not entry_id:
-                self._logger.error(
-                    "entry_id missing from plugin configuration; cannot open wishlist database"
-                )
-                self.event_manager.plugin_error(
-                    self.name,
-                    "entry_id missing from plugin configuration",
-                    "ensure_connection",
-                )
-                return None
+            self._ensure_entry_id()
 
             try:
                 connection = await self._run_db_task(self._get_or_create_connection_sync)
@@ -529,6 +521,41 @@ class SantaWishlist(SimpleBaseTool):
     def _execute_query_sync(self, query: str, params: Optional[List[Any]] = None):
         connection = self._get_or_create_connection_sync()
         return connection.execute_query(query, params or [])
+
+    def _ensure_entry_id(self) -> str:
+        config: Dict[str, Any]
+
+        if self.config is None:
+            config = {}
+            self.config = config
+        elif isinstance(self.config, dict):
+            config = self.config
+        else:
+            try:
+                config = dict(self.config)
+            except Exception:  # pragma: no cover - extremely defensive
+                config = {"_raw_config": self.config}
+            self.config = config
+
+        entry_id = str(config.get("entry_id", "")).strip()
+        if entry_id:
+            return entry_id
+
+        if not self._fallback_entry_id:
+            unique_source = getattr(self.hass, "instance_id", None) or self.name
+            digest = hashlib.sha256(unique_source.encode("utf-8")).hexdigest()[:12]
+            self._fallback_entry_id = f"{self.name}_{digest}"
+
+        config["entry_id"] = self._fallback_entry_id
+
+        if not self._entry_id_warning_emitted:
+            self._logger.warning(
+                "entry_id missing from plugin configuration; using fallback '%s'", 
+                self._fallback_entry_id,
+            )
+            self._entry_id_warning_emitted = True
+
+        return self._fallback_entry_id
 
     def _table_name(self, suffix: str) -> str:
         return f"{self.name}_{suffix}"
